@@ -15,11 +15,11 @@ from rotations import angle_normalize, rpy_jacobian_axis_angle, skew_symmetric, 
 # This is where you will load the data from the pickle files. For parts 1 and 2, you will use
 # p1_data.pkl. For Part 3, you will use pt3_data.pkl.
 ################################################################################################
-# with open('data/pt1_data.pkl', 'rb') as file:
-#     data = pickle.load(file)
-
-with open('data/pt3_data.pkl', 'rb') as file:
+with open('data/pt1_data.pkl', 'rb') as file:
     data = pickle.load(file)
+
+# with open('data/pt3_data.pkl', 'rb') as file:
+#     data = pickle.load(file)
 
 ################################################################################################
 # Each element of the data dictionary is stored as an item from the data dictionary, which we
@@ -104,7 +104,7 @@ var_imu_f = 0.10
 var_imu_w = 0.25
 var_imu_vect = np.array([var_imu_f, var_imu_f, var_imu_f, var_imu_w, var_imu_w, var_imu_w]).reshape(6,1)
 var_gnss  = 0.1
-var_lidar = 10.00
+var_lidar = 2.00
 
 ################################################################################################
 # We can also set up some constants that won't change for any iteration of our solver.
@@ -144,10 +144,12 @@ lidar_i = 0
 def measurement_update(sensor_var, p_cov_check, y_k, p_check, v_check, q_check):
     
     # 3.1 Compute Kalman Gain
-    sensor_var = np.array([[sensor_var], [sensor_var], [sensor_var*5]])
+    sensor_var = np.array([[sensor_var], [sensor_var], [sensor_var]])
     K = p_cov_check @ h_jac.T @ (inv(h_jac @ p_cov_check @ h_jac.T + np.eye(3)*sensor_var))
 
     # 3.2 Compute error state
+    print(K)
+    print((y_k - p_check))
     delta_x = K @ (y_k - p_check)
     delta_p = delta_x[:3]
     delta_v = delta_x[3:6]
@@ -192,6 +194,7 @@ for k in range(1, imu_f.data.shape[0]):  # start at 1 b/c we have initial predic
     # 2. Propagate uncertainty
     p_cov_check = p_cov[k-1]
     p_cov_check = F @ p_cov_check @ F.T + l_jac @ Q @ l_jac.T 
+    # print(p_cov_check)
 
     # 3. Check availability of GNSS and LIDAR measurements
 
@@ -318,10 +321,10 @@ plt.show()
 #     file.write(p2_str)
 
 # Pt. 3 submission
-p3_indices = [6800, 7600, 8400, 9200, 10000]
-p3_str = ''
-for val in p3_indices:
-    for i in range(3):
-        p3_str += '%.3f ' % (p_est[val, i])
-with open('pt3_submission.txt', 'w') as file:
-    file.write(p3_str)
+# p3_indices = [6800, 7600, 8400, 9200, 10000]
+# p3_str = ''
+# for val in p3_indices:
+#     for i in range(3):
+#         p3_str += '%.3f ' % (p_est[val, i])
+# with open('pt3_submission.txt', 'w') as file:
+#     file.write(p3_str)

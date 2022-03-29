@@ -100,11 +100,11 @@ lidar.data = (C_li @ lidar.data.T).T + t_i_li
 # most important aspects of a filter is setting the estimated sensor variances correctly.
 # We set the values here.
 ################################################################################################
-var_imu_f = 0.10
-var_imu_w = 0.25
+var_imu_f = 0.10    # accel variance (m/s2)
+var_imu_w = 0.25    # accel variance (rad/s2)
 var_imu_vect = np.array([var_imu_f, var_imu_f, var_imu_f, var_imu_w, var_imu_w, var_imu_w]).reshape(6,1)
-var_gnss  = 0.1
-var_lidar = 2.00
+var_gnss  = 0.1     # meters
+var_lidar = 3.00    # meters
 
 ################################################################################################
 # We can also set up some constants that won't change for any iteration of our solver.
@@ -114,8 +114,6 @@ l_jac = np.zeros([9, 6])
 l_jac[3:, :] = np.eye(6)  # motion model noise jacobian
 h_jac = np.zeros([3, 9])
 h_jac[:, :3] = np.eye(3)  # measurement model jacobian
-
-# print(l_jac, h_jac)
 
 #### 3. Initial Values #########################################################################
 
@@ -143,24 +141,22 @@ lidar_i = 0
 ################################################################################################
 def measurement_update(sensor_var, p_cov_check, y_k, p_check, v_check, q_check):
     
-    # 3.1 Compute Kalman Gain
+    # 5 Compute Kalman Gain
     sensor_var = np.array([[sensor_var], [sensor_var], [sensor_var]])
     K = p_cov_check @ h_jac.T @ (inv(h_jac @ p_cov_check @ h_jac.T + np.eye(3)*sensor_var))
 
-    # 3.2 Compute error state
-    print(K)
-    print((y_k - p_check))
+    # 6 Compute error state
     delta_x = K @ (y_k - p_check)
     delta_p = delta_x[:3]
     delta_v = delta_x[3:6]
     delta_q = delta_x[6:]
 
-    # 3.3 Correct predicted state
+    # 7 Correct predicted state
     p_hat = p_check + delta_p
     v_hat = v_check + delta_v
     q_hat = Quaternion(euler=angle_normalize(delta_q)).quat_mult_left(q_check) 
 
-    # 3.4 Compute corrected covariance 
+    # 8 Compute corrected covariance 
     p_cov_hat = (np.eye(p_cov_check.shape[0]) - K @ h_jac) @ p_cov_check
 
     return p_hat, v_hat, q_hat, p_cov_hat
@@ -185,19 +181,17 @@ for k in range(1, imu_f.data.shape[0]):  # start at 1 b/c we have initial predic
     theta = imu_w.data[k-1] * delta_t 
     q_check = Quaternion(euler=angle_normalize(theta)).quat_mult_right(q_est[k - 1]) 
 
-    # 1.1 Linearize the motion model and compute Jacobians
+    # 2. Linearize the motion model and compute Jacobians
     F = np.eye(9)
     F[:3, 3:6] = np.eye(3) * delta_t
     F[3:6, 6:9] = -skew_symmetric(Cns @ f_k1) * delta_t
     Q = (np.eye(6) * var_imu_vect) * delta_t**2
 
-    # 2. Propagate uncertainty
+    # 3. Propagate uncertainty
     p_cov_check = p_cov[k-1]
     p_cov_check = F @ p_cov_check @ F.T + l_jac @ Q @ l_jac.T 
-    # print(p_cov_check)
 
-    # 3. Check availability of GNSS and LIDAR measurements
-
+    # 4. Check availability of GNSS and LIDAR measurements
     while gnss_i < gnss.t.shape[0] and gnss.t[gnss_i] <= imu_f.t[k]: 
         if gnss.t[gnss_i] == imu_f.t[k]: 
             y_k = gnss.data[gnss_i] 
